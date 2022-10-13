@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse import lil_matrix
 
-print('Imported now')
+print('Imported MigPreFuncoes now')
 def ricker(nps,fr,dt):
     npt = nps*dt
     t = np.arange(-npt/2,npt/2,dt)

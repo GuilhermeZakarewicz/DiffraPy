@@ -2,7 +2,7 @@
 
 import numpy as np
 
-print('Imported now')
+print('Imported SlantStack now')
 
 
 
