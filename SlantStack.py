@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import numpy as np
+from tqdm import tqdm
 
 print('Imported SlantStack now')
 
@@ -146,9 +147,9 @@ def local_window(data1,xwin,twin,dx,dt):
     m_taumax e m_pmax, em que cada célula armazena os valores máximos de tau e p para aquele ponto no modelo
     """
     
-    dp=0.0001
-    pmin=-0.0032
-    pmax=0.0032
+    dp=0.1
+    pmin=-3
+    pmax=3
     p = np.arange(pmin,pmax,dp)
     
     #[ntr1,nt1]=data1.shape
