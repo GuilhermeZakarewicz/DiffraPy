@@ -5,7 +5,6 @@ import time
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse import lil_matrix
-from tqdm import tqdm
 
 print('Imported MigPreFuncoes now')
 def ricker(nps,fr,dt):
@@ -283,31 +282,7 @@ def taper(ntr,ns,app,isx,igx):
     
     return ar
 
-
-
-
-def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
-    """
-    Calcula a migração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
-    Considera a função peso w = w(s,r,t)
-    
-    Entrada:
-    gather - dado sísmico (nt,ntr)
-    isx - posição do tiro
-    dx - discretização no eixo x (m)
-    dz - discretização no eixo z (m)
-    dt - discretização do tempo (s)
-    win - (tamanho da janela)/2
-    dwin - passo da janela. Preferencialmente, dwin=dt
-    app - tamanho da abertura
-    TTh - tabela do tempo de trânsito calculada com a função raymodel3
-    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
-    Saída:
-    mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
-    """
-    timer=np.round(TTh/dt)+1
+def migvsp_winapp(timer,isx,dx,dt,dz,gather,win,dwin,app,TTh,X,Y):
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
     [ntr2,nz,nx]=timer.shape
@@ -334,7 +309,7 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
             twin = t + window[j]
             t2 = (twin<nt)*twin 
             trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
-            trace1 = trace1.reshape([nz,nx])*(w) 
+            trace1 = trace1.reshape([nz,nx])*w 
             trace1 = trace1*trace_app
             trace_win = trace_win+trace1
         
@@ -342,40 +317,13 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         
     return mig
 
-
-
-
-
-def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
-        
-    """
-    Calcula a migração para vários arquivos (todos os tiros ao longo de uma linha sísmica) com janela (window) e abertura (aperture)
-    Stack das imagens migradas de cada tiro
-    Considera a função peso w = w(s,r,t)
+def migstack_winapp(timer,isx,dx,dt,files,win,dwin,app):
     
-    Entrada:
-    files - lista (array) com os dados sísmicos. 
-    isx - posição do tiro
-    dx - discretização no eixo x (m)
-    dz - discretização no eixo z (m)
-    dt - discretização do tempo (s)
-    win - (tamanho da janela)/2
-    dwin - passo da janela. Preferencialmente, dwin=dt
-    app - tamanho da abertura
-    TTh - tabela do tempo de trânsito calculada com a função raymodel3
-    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
-    Saída:
-    mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
-    """
-    
-    timer=np.round(TTh/dt)+1
     migs = []
         
-    for count,gather in tqdm(enumerate(files)):
+    for count,gather in enumerate(files):
         isx = count
-        #print(f"shot {isx}")
+        print(f"shot {isx}")
     
         window = np.arange(-win,win,dwin)
         [nt,ntr]=gather.shape
@@ -416,35 +364,7 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         
     return mig_final
 
-
-
-
-
-
-def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
-        
-    """
-    Calcula a imagem de difração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
-    Considera a função peso w = 1 - w(s,r,t)
-    
-    Entrada:
-    gather - dado sísmico (nt,ntr)
-    isx - posição do tiro
-    dx - discretização no eixo x (m)
-    dz - discretização no eixo z (m)
-    dt - discretização do tempo (s)
-    win - (tamanho da janela)/2
-    dwin - passo da janela. Preferencialmente, dwin=dt
-    app - tamanho da abertura
-    TTh - tabela do tempo de trânsito calculada com a função raymodel3
-    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
-    Saída:
-    mig - imagem de difrações a partir de migração com janela e abertura. Formato: matriz [nt,ntr]
-    """
-    
-    timer=np.round(TTh/dt)+1
+def migvsp_winapp_diff(timer,isx,dx,dt,gather,win,dwin,app):
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
     [ntr2,nz,nx]=timer.shape
@@ -482,34 +402,8 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
 
 
 
-
-
-
-def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
-            
-    """
-    Calcula a migração para vários arquivos (todos os tiros ao longo de uma linha sísmica) com janela (window) e abertura (aperture)
-    Stack das imagens migradas de cada tiro
-    Considera a função peso w = 1 - w(s,r,t)
+def migstack_winapp_diff(timer,isx,dx,dt,files,win,dwin,app):
     
-    Entrada:
-    files - lista (array) com os dados sísmicos. 
-    isx - posição do tiro
-    dx - discretização no eixo x (m)
-    dz - discretização no eixo z (m)
-    dt - discretização do tempo (s)
-    win - (tamanho da janela)/2
-    dwin - passo da janela. Preferencialmente, dwin=dt
-    app - tamanho da abertura
-    TTh - tabela do tempo de trânsito calculada com a função raymodel3
-    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
-    Saída:
-    mig - imagem de difrações a partir de migrações com janela e abertura. Formato: matriz [nt,ntr]
-    """
-    
-    timer=np.round(TTh/dt)+1
     migs = []
         
     for count,gather in enumerate(files):

@@ -5,7 +5,6 @@ import time
 import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse import lil_matrix
-from tqdm import tqdm
 
 print('Imported MigPreFuncoes now')
 def ricker(nps,fr,dt):
@@ -373,9 +372,9 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     timer=np.round(TTh/dt)+1
     migs = []
         
-    for count,gather in tqdm(enumerate(files)):
+    for count,gather in enumerate(files):
         isx = count
-        #print(f"shot {isx}")
+        print(f"shot {isx}")
     
         window = np.arange(-win,win,dwin)
         [nt,ntr]=gather.shape
