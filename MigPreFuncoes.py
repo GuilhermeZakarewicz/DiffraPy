@@ -222,8 +222,8 @@ def peso(TTh,dt,X,Y,igx,isx):
     
     timer=np.round(TTh/dt)+1
 
-    gH = np.gradient(timer, axis=2) #gradiente horizontal
-    gV = np.gradient(timer, axis=1) #gradiente vertical
+    gH = np.gradient(timer, axis=2) #gradiente horizontal  #diferença entre colunas 
+    gV = np.gradient(timer, axis=1) #gradiente vertical    #diferença entre linhas
 
     prV = gV[igx,:,:] 
     prH = gH[igx,:,:] 
@@ -240,7 +240,7 @@ def peso(TTh,dt,X,Y,igx,isx):
         if x==0:
             norma[idx]=1
 
-    w = (pH/norma * X) + (pV/norma * Y)
+    w = (pH/norma * X) + (pV/norma * Y) 
     
     return w
 
@@ -329,7 +329,7 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         obli = IIZ/R
         trace_app = taper(ntr,nz,app,isx,igx) 
         
-        for j in range(len(window)):
+        for j in range(len(window)): #somar amplitudes da curva de difração com uma janela 
             t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
             twin = t + window[j]
             t2 = (twin<nt)*twin 
