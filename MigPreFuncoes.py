@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from scipy.sparse import csr_matrix
 from scipy.sparse import lil_matrix
 from tqdm import tqdm
+from scipy.fft import rfft, rfftfreq, irfft
+import cmath
 
 print('Imported MigPreFuncoes now')
 def ricker(nps,fr,dt):
@@ -245,6 +247,37 @@ def peso(TTh,dt,X,Y,igx,isx):
     return w
 
 
+
+def phase_shift(gather):
+    """
+    Realiza a meia-derivada (phase-shift de 45 graus) para os traços sísmicos de um gather.
+    Entrada:
+    gather - dado sísmico (nt,ntr)
+    Saída:
+    phase_gather - dado sísmico após phase-shift em todos os traços (nt,ntr)
+    """
+    phase_gather = gather.copy()
+    n_traces = gather.shape[-1]
+    
+    for i in range(n_traces):
+        trace = gather[:,i] #selecionando cada traço dentro do gather
+        
+        signalFFT = rfft(trace) #passando o traço pro domínio da frequência
+        #fftFreq = rfftfreq(len(trace)) #bins de frequência para plotar (eixo w) 
+        
+        signalPSD = np.abs(signalFFT) ** 2
+        signalPSD /= len(signalFFT)**2
+
+        signalPhase = np.angle(signalFFT) #fase do traço
+        newSignalFFT = signalFFT * cmath.rect( 1., np.pi/4 ) #Phase Shift de 45 graus 
+
+        newSignal = irfft(newSignalFFT) #voltando para o domínio do tempo
+        
+        phase_gather[:,i] = newSignal
+        
+    return phase_gather
+
+
 def migvsp(timer,isx,dt,gather):
     [nt,ntr]=gather.shape
     [ntr2,nz,nx]=timer.shape
@@ -307,6 +340,7 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     Saída:
     mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
     """
+    gather = phase_shift(gather)	
     timer=np.round(TTh/dt)+1
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
@@ -369,6 +403,14 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     Saída:
     mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
     """
+
+    gathers_shifted = []
+
+    for i in files:
+        gather_shifted = phase_shift(i)
+        gathers_shifted.append(gather_shifted)
+
+    files = gathers_shifted
     
     timer=np.round(TTh/dt)+1
     migs = []
@@ -443,7 +485,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     Saída:
     mig - imagem de difrações a partir de migração com janela e abertura. Formato: matriz [nt,ntr]
     """
-    
+    gather = phase_shift(gather)    
     timer=np.round(TTh/dt)+1
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
@@ -508,6 +550,14 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     Saída:
     mig - imagem de difrações a partir de migrações com janela e abertura. Formato: matriz [nt,ntr]
     """
+
+    gathers_shifted = []
+
+    for i in files:
+        gather_shifted = phase_shift(i)
+        gathers_shifted.append(gather_shifted)
+
+    files = gathers_shifted
     
     timer=np.round(TTh/dt)+1
     migs = []
