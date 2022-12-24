@@ -224,7 +224,7 @@ def peso(TTh,dt,X,Y,igx,isx):
     
     timer=np.round(TTh/dt)+1
 
-    gH = np.gradient(timer, axis=2) #gradiente horizontal  #diferença entre colunas 
+    gH = np.gradient(timer, axis=2) #gradiente horizontal  #diferença entre colunas (do modelo de velocidade)
     gV = np.gradient(timer, axis=1) #gradiente vertical    #diferença entre linhas
 
     prV = gV[igx,:,:] 
@@ -240,7 +240,8 @@ def peso(TTh,dt,X,Y,igx,isx):
 
     for idx, x in np.ndenumerate(norma): #avoid nan's
         if x==0:
-            norma[idx]=1
+            norma[idx]=1e-16
+            #print('oi')
 
     w = (pH/norma * X) + (pV/norma * Y) 
     

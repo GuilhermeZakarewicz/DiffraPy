@@ -9,8 +9,8 @@ print('Imported SlantStack now')
 
 def slant(p,tau,data1,dx,dt,t_ini,x_ini):
     # Retorna a semblance da reta dada por p, tau
-    #p = angulo (s/m)
-    #tau = tempo (s)
+    #p = tangente de theta (prof./dist.)
+    #tau = tempo (s) (ou prof. em m)
     # data1 = dado [s,m]
     # dt [s]
     # x_ini [coordenada do grid]
