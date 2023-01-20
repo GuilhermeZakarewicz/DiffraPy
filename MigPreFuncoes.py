@@ -222,8 +222,8 @@ def peso(TTh,dt,X,Y,igx,isx):
     w - função peso (w.shape=[nz,nx])
     """
     
-    timer=np.round(TTh/dt)+1
-
+    #timer=np.round(TTh/dt)+1
+    timer = TTh
     gH = np.gradient(timer, axis=2) #gradiente horizontal  #diferença entre colunas (do modelo de velocidade)
     gV = np.gradient(timer, axis=1) #gradiente vertical    #diferença entre linhas
 
@@ -266,13 +266,13 @@ def phase_shift(gather):
         signalFFT = rfft(trace) #passando o traço pro domínio da frequência
         #fftFreq = rfftfreq(len(trace)) #bins de frequência para plotar (eixo w) 
         
-        signalPSD = np.abs(signalFFT) ** 2
-        signalPSD /= len(signalFFT)**2
+        #signalPSD = np.abs(signalFFT) ** 2
+        #signalPSD /= len(signalFFT)**2
 
-        signalPhase = np.angle(signalFFT) #fase do traço
+        #signalPhase = np.angle(signalFFT) #fase do traço
         newSignalFFT = signalFFT * cmath.rect( 1., np.pi/4 ) #Phase Shift de 45 graus 
 
-        newSignal = irfft(newSignalFFT) #voltando para o domínio do tempo
+        newSignal = irfft(newSignalFFT, n=gather.shape[0]) #voltando para o domínio do tempo,
         
         phase_gather[:,i] = newSignal
         
@@ -320,7 +320,7 @@ def taper(ntr,ns,app,isx,igx):
 
 
 
-def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     """
     Calcula a migração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
     Considera a função peso w = w(s,r,t)
@@ -335,14 +335,17 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     dwin - passo da janela. Preferencialmente, dwin=dt
     app - tamanho da abertura
     TTh - tabela do tempo de trânsito calculada com a função raymodel3
-    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
+    X - componente X da normal do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
+    Y - componente Y da normal do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
+    epsilon - entre 0 e 1- relacionado à frequência (zona de Fresnel)
     Saída:
     mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
     """
-    gather = phase_shift(gather)	
+    gather = phase_shift(gather)
+    
     timer=np.round(TTh/dt)+1
+    #timer=TTh
+    
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
     [ntr2,nz,nx]=timer.shape
@@ -357,10 +360,11 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     # Loop over each trace of the shot gather at src isx
     for igx in range(0,ntr):
         w = peso(TTh,dt,X,Y,igx,isx)
+        #mask = w>(1-epsilon)
         trace_win = np.zeros([nz,nx])
         R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
         r_mask = (R==0)
-        R[r_mask]= dx/1000
+        R[r_mask]= dx/1000 #trocando 0 por algo pequeno
         obli = IIZ/R
         trace_app = taper(ntr,nz,app,isx,igx) 
         
@@ -381,7 +385,7 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
 
 
 
-def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
         
     """
     Calcula a migração para vários arquivos (todos os tiros ao longo de uma linha sísmica) com janela (window) e abertura (aperture)
@@ -414,6 +418,7 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     files = gathers_shifted
     
     timer=np.round(TTh/dt)+1
+    #timer=TTh
     migs = []
         
     for count,gather in tqdm(enumerate(files)):
@@ -435,6 +440,7 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         # Loop over each trace of the shot gather at src isx
         for igx in range(0,ntr):
             w = peso(TTh,dt,X,Y,igx,isx)
+            #mask = w>(1-epsilon)
             trace_win = np.zeros([nz,nx])
             R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
             r_mask = (R==0)
@@ -464,7 +470,7 @@ def migstack_winapp(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
 
 
 
-def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
         
     """
     Calcula a imagem de difração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
@@ -476,7 +482,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     dx - discretização no eixo x (m)
     dz - discretização no eixo z (m)
     dt - discretização do tempo (s)
-    win - (tamanho da janela)/2
+    win - (tamanho da janela (s))/2
     dwin - passo da janela. Preferencialmente, dwin=dt
     app - tamanho da abertura
     TTh - tabela do tempo de trânsito calculada com a função raymodel3
@@ -488,6 +494,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     """
     gather = phase_shift(gather)    
     timer=np.round(TTh/dt)+1
+    #timer=TTh
     window = np.arange(-win,win,dwin)
     [nt,ntr]=gather.shape
     [ntr2,nz,nx]=timer.shape
@@ -502,6 +509,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     # Loop over each trace of the shot gather at src isx
     for igx in range(0,ntr):
         w = peso(TTh,dt,X,Y,igx,isx)
+        #mask = w<(1-epsilon)
         trace_win = np.zeros([nz,nx])
         R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
         r_mask = (R==0)
@@ -528,7 +536,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
 
 
 
-def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
             
     """
     Calcula a migração para vários arquivos (todos os tiros ao longo de uma linha sísmica) com janela (window) e abertura (aperture)
@@ -561,6 +569,7 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
     files = gathers_shifted
     
     timer=np.round(TTh/dt)+1
+    #timer=TTh
     migs = []
         
     for count,gather in enumerate(files):
@@ -582,6 +591,7 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         # Loop over each trace of the shot gather at src isx
         for igx in range(0,ntr):
             w = peso(TTh,dt,X,Y,igx,isx)
+            #mask = w<(1-epsilon)
             trace_win = np.zeros([nz,nx])
             R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
             r_mask = (R==0)
