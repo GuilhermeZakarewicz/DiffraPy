@@ -177,7 +177,7 @@ def raymodel3(SW,dx,nx,filename):
     traveltimesrc=[]
     sx=np.arange(0,nx)*DX
     
-    for ixsrc in range(0,nx):
+    for ixsrc in tqdm(range(0,nx)):
         SP = [0,ixsrc]
         Ttable = Mray(SW,SP,DX)
         traveltimesrc.append(Ttable[:,:])
@@ -185,6 +185,58 @@ def raymodel3(SW,dx,nx,filename):
     with open(filename, 'wb') as f:
         np.save(f, traveltimesrc)
     return traveltimesrc
+
+
+def kirchoffModeling(nsx,ngx,dsx,nx,nt,dt,TTh,R,W,filename):
+    """
+    Kirchhoff Modeling of synthetic seismic common-shot gathers.
+    Input:
+    nsx - number of shots (pode ser no máximo o valor de TT axis=0)
+    ngx - number of receivers (pode ser no máximo o valor de TT axis=0)
+    dsx - shots spacing (grid value)
+    nx - grid size in X
+    nt - number of time samples
+    dt -
+    TTh - travel-time table
+    R - reflectivity model
+    W -
+    path - [str] path to the directory to store the files
+    Output:
+    files - array [(nsx/dsx),nt,nx] with the shot gathers 
+    the funtion saves the files in [path] 
+    """
+    nsx=nx #105  #numero de tiros (pode ser no máximo o valor de TT axis=0)
+    ngx=nx #105   #numero de receptores (pode ser no máximo o valor de TT axis=0)
+
+    #Loop over shots
+    for isx in tqdm(range(0,nsx,dsx)):
+        D = np.zeros([nt,ngx])
+        TSX = (TTh[isx,:,:]/dt+1).astype(int)  # Traveltime  (indexes)
+
+        # Loop Over Traces
+        for gx in range(0,ngx):
+            TXG=(TTh[gx,:,:]/dt+1).astype(int)  # Traveltime in heterogeneous medium (indexes)
+
+            #Loop over time sample in a trace
+            for t in range(0,nt):
+                M=W[t-(TSX+TXG)+nt+1]*R
+                #D[t,gx]=np.sum(M.flatten('F'));
+                D[t,gx]=np.sum(M.flatten())
+            gather1=np.diff(D[:,:],n=2,axis=0)
+        
+        file = str(filename)+"_{}".format(isx)
+        with open(file, "wb") as f:
+            np.save(f, gather1)
+            
+    files = []
+
+    for i in range(0,nsx,dsx):
+        file = str(filename)+"_{}".format(isx)
+        with open(file, 'rb') as file:
+            (gather) = np.load(file)
+            files.append(gather)
+            
+    return files
 
 
 def taper(ntr,ns,app,isx,igx):
@@ -222,10 +274,8 @@ def peso(TTh,dt,X,Y,igx,isx):
     w - função peso (w.shape=[nz,nx])
     """
     
-    #timer=np.round(TTh/dt)+1
-    timer = TTh
-    gH = np.gradient(timer, axis=2) #gradiente horizontal  #diferença entre colunas (do modelo de velocidade)
-    gV = np.gradient(timer, axis=1) #gradiente vertical    #diferença entre linhas
+    gH = np.gradient(TTh, axis=2) #gradiente horizontal  #diferença entre colunas (do modelo de velocidade)
+    gV = np.gradient(TTh, axis=1) #gradiente vertical    #diferença entre linhas
 
     prV = gV[igx,:,:] 
     prH = gH[igx,:,:] 
@@ -238,10 +288,9 @@ def peso(TTh,dt,X,Y,igx,isx):
     
     norma = np.sqrt(pH**2 + pV**2)
 
-    for idx, x in np.ndenumerate(norma): #avoid nan's
+    for idx, x in np.ndenumerate(norma): 
         if x==0:
-            norma[idx]=1e-16
-            #print('oi')
+            norma[idx]=1e-16 #avoid nan's
 
     w = (pH/norma * X) + (pV/norma * Y) 
     
@@ -261,19 +310,10 @@ def phase_shift(gather):
     n_traces = gather.shape[-1]
     
     for i in range(n_traces):
-        trace = gather[:,i] #selecionando cada traço dentro do gather
-        
-        signalFFT = rfft(trace) #passando o traço pro domínio da frequência
-        #fftFreq = rfftfreq(len(trace)) #bins de frequência para plotar (eixo w) 
-        
-        #signalPSD = np.abs(signalFFT) ** 2
-        #signalPSD /= len(signalFFT)**2
-
-        #signalPhase = np.angle(signalFFT) #fase do traço
-        newSignalFFT = signalFFT * cmath.rect( 1., np.pi/4 ) #Phase Shift de 45 graus 
-
-        newSignal = irfft(newSignalFFT, n=gather.shape[0]) #voltando para o domínio do tempo,
-        
+        trace = gather[:,i]
+        signalFFT = rfft(trace) 
+        newSignalFFT = signalFFT * cmath.rect( 1., np.pi/4 ) 
+        newSignal = irfft(newSignalFFT, n=gather.shape[0]) 
         phase_gather[:,i] = newSignal
         
     return phase_gather
@@ -286,12 +326,12 @@ def migvsp(timer,isx,dt,gather):
         print('Gather e traveltime table tem numero diferente de traços')
     mig=np.zeros([nz,nx])
     # Loop over each trace of the shot gather at src isx
-    for igx in range(0,ntr):
-        w = peso(igx,isx)
+    for igx in tqdm(range(0,ntr)):
+        #w = peso(igx,isx)
         t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx]
         t2 = (t<nt)*t #Check how to avoid this... summing amplitudes for t>nt
         trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
-        trace1=trace1.reshape([nz,nx])*w
+        trace1=trace1.reshape([nz,nx])#*w
         mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace1
         
     
@@ -358,7 +398,7 @@ def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     IZ = np.arange(0,nz*dz,dz)
     [IIX,IIZ] = np.meshgrid(IX,IZ)
     # Loop over each trace of the shot gather at src isx
-    for igx in range(0,ntr):
+    for igx in tqdm(range(0,ntr)):
         w = peso(TTh,dt,X,Y,igx,isx)
         #mask = w>(1-epsilon)
         trace_win = np.zeros([nz,nx])
@@ -507,7 +547,7 @@ def migvsp_winapp_diff(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     IZ = np.arange(0,nz*dz,dz)
     [IIX,IIZ] = np.meshgrid(IX,IZ)
     # Loop over each trace of the shot gather at src isx
-    for igx in range(0,ntr):
+    for igx in tqdm(range(0,ntr)):
         w = peso(TTh,dt,X,Y,igx,isx)
         #mask = w<(1-epsilon)
         trace_win = np.zeros([nz,nx])
@@ -572,9 +612,9 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     #timer=TTh
     migs = []
         
-    for count,gather in enumerate(files):
+    for count,gather in tqdm(enumerate(files)):
         isx = count
-        print(f"shot {isx}")
+        #print(f"shot {isx}")
     
         window = np.arange(-win,win,dwin)
         [nt,ntr]=gather.shape
