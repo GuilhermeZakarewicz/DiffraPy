@@ -10,6 +10,7 @@ from scipy.fft import rfft, rfftfreq, irfft
 import cmath
 
 print('Imported MigPreFuncoes now')
+
 def ricker(nps,fr,dt):
     npt = nps*dt
     t = np.arange(-npt/2,npt/2,dt)
@@ -189,21 +190,27 @@ def raymodel3(SW,dx,nx,filename):
 
 def kirchoffModeling(nsx,ngx,dsx,nx,nt,dt,TTh,R,W,filename):
     """
-    Kirchhoff Modeling of synthetic seismic common-shot gathers.
-    Input:
-    nsx - number of shots (pode ser no máximo o valor de TT axis=0)
-    ngx - number of receivers (pode ser no máximo o valor de TT axis=0)
-    dsx - shots spacing (grid value)
-    nx - grid size in X
-    nt - number of time samples
-    dt -
-    TTh - travel-time table
-    R - reflectivity model
-    W -
-    path - [str] path to the directory to store the files
-    Output:
-    files - array [(nsx/dsx),nt,nx] with the shot gathers 
-    the funtion saves the files in [path] 
+    Kirchhoff Modeling of synthetic seismic common-shot gathers. 
+    Calculate the common-shot gathers for the input model. 
+    
+    Parameters
+    ----------
+    nsx : number of shots. Minimum = 1, maximum = nx
+    ngx : number of receivers. Minimum = 1, maximum = nx
+    dsx : shots spacing (grid value)
+    nx : grid size in X
+    nt : number of time samples
+    dt : 
+    TTh : travel-time table
+    R : reflectivity model
+    W :
+    path : [str] path to the directory to store the files
+    
+    
+    Returns
+    -------
+    files : np.array [(nsx/dsx),nt,nx] with the shot gathers 
+    The funtion saves the files in directory [path] 
     """
     nsx=nx #105  #numero de tiros (pode ser no máximo o valor de TT axis=0)
     ngx=nx #105   #numero de receptores (pode ser no máximo o valor de TT axis=0)
@@ -325,17 +332,159 @@ def migvsp(timer,isx,dt,gather):
     if ntr!=ntr2:
         print('Gather e traveltime table tem numero diferente de traços')
     mig=np.zeros([nz,nx])
-    # Loop over each trace of the shot gather at src isx
+
     for igx in tqdm(range(0,ntr)):
-        #w = peso(igx,isx)
         t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx]
         t2 = (t<nt)*t #Check how to avoid this... summing amplitudes for t>nt
         trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
-        trace1=trace1.reshape([nz,nx])#*w
+        trace1=trace1.reshape([nz,nx])
         mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace1
         
-    
     return mig
+
+
+def migvsp_dipfield(gather,isx,dx,dz,dt,win,dwin,app,TTh):
+    """
+    Calcula a migração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
+    Considera a função peso w = w(s,r,t)
+    
+    Entrada:
+    gather - dado sísmico (nt,ntr)
+    isx - posição do tiro
+    dx - discretização no eixo x (m)
+    dz - discretização no eixo z (m)
+    dt - discretização do tempo (s)
+    win - (tamanho da janela)/2
+    dwin - passo da janela. Preferencialmente, dwin=dt
+    app - tamanho da abertura
+    TTh - tabela do tempo de trânsito calculada com a função raymodel3
+    X - componente X da normal do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
+    Y - componente Y da normal do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
+    epsilon - entre 0 e 1- relacionado à frequência (zona de Fresnel)
+    Saída:
+    mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
+    """
+    gather = phase_shift(gather)
+    
+    timer=np.round(TTh/dt)+1
+    #timer=TTh
+    
+    window = np.arange(-win,win,dwin)
+    [nt,ntr]=gather.shape
+    [ntr2,nz,nx]=timer.shape
+    if ntr!=ntr2:
+        print('Gather e traveltime table tem numero diferente de traços')
+        
+    mig=np.zeros([nz,nx])
+    
+    IX = np.arange(0,nx*dx,dx)
+    IZ = np.arange(0,nz*dz,dz)
+    [IIX,IIZ] = np.meshgrid(IX,IZ)
+    # Loop over each trace of the shot gather at src isx
+    for igx in tqdm(range(0,ntr)):
+        #w = peso(TTh,dt,X,Y,igx,isx)
+        w=1
+        #mask = w>(1-epsilon)
+        trace_win = np.zeros([nz,nx])
+        R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
+        r_mask = (R==0)
+        R[r_mask]= dx/1000 #trocando 0 por algo pequeno
+        obli = IIZ/R
+        trace_app = taper(ntr,nz,app,isx,igx) 
+        
+        for j in range(len(window)): #somar amplitudes da curva de difração com uma janela 
+            t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
+            twin = t + window[j]
+            t2 = (twin<nt)*twin 
+            trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
+            trace1 = trace1.reshape([nz,nx])*(w) 
+            trace1 = trace1*trace_app
+            trace_win = trace_win+trace1
+        
+        mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace_win*obli
+        
+    return mig
+
+
+
+def kirchhoff_migvsp(files,dx,dz,dt,win,dwin,app,TTh):
+        
+    """
+    Calcula a migração para vários arquivos (todos os tiros ao longo de uma linha sísmica) com janela (window) e abertura (aperture)
+    Stack das imagens migradas de cada tiro
+    Considera a função peso w = 1
+    
+    Entrada:
+    files - lista (array) com os dados sísmicos. 
+    isx - posição do tiro
+    dx - discretização no eixo x (m)
+    dz - discretização no eixo z (m)
+    dt - discretização do tempo (s)
+    win - (tamanho da janela)/2
+    dwin - passo da janela. Preferencialmente, dwin=dt
+    app - tamanho da abertura
+    TTh - tabela do tempo de trânsito calculada com a função raymodel3
+    X - componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
+    Y - componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
+    
+    Saída:
+    mig - imagem migrada com janela e abertura. Formato: matriz [nt,ntr]
+    """
+
+    gathers_shifted = []
+
+    for i in files:
+        gather_shifted = phase_shift(i)
+        gathers_shifted.append(gather_shifted)
+
+    files = gathers_shifted
+    
+    timer=np.round(TTh/dt)+1
+    migs = []
+        
+    for count,gather in tqdm(enumerate(files)):
+        isx = count
+        window = np.arange(-win,win,dwin)
+        [nt,ntr]=gather.shape
+        [ntr2,nz,nx]=timer.shape
+        if ntr!=ntr2:
+            print('Gather e traveltime table tem numero diferente de traços')
+
+        mig=np.zeros([nz,nx])
+        mig_final=np.zeros([nz,nx])
+
+        IX = np.arange(0,nx*dx,dx)
+        IZ = np.arange(0,nz*dz,dz)
+        [IIX,IIZ] = np.meshgrid(IX,IZ)
+        # Loop over each trace of the shot gather at src isx
+        for igx in range(0,ntr):
+            #w = peso(TTh,dt,X,Y,igx,isx)
+            w = 1
+            trace_win = np.zeros([nz,nx])
+            R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
+            r_mask = (R==0)
+            R[r_mask]= dx/1000
+            obli = IIZ/R
+            trace_app = taper(ntr,nz,app,isx,igx) 
+
+            for j in range(len(window)):
+                t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
+                twin = t + window[j]
+                t2 = (twin<nt)*twin 
+                trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
+                trace1 = trace1.reshape([nz,nx])*w 
+                trace1 = trace1*trace_app
+                trace_win = trace_win+trace1
+
+            mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace_win*obli
+        
+        migs.append(mig)
+    
+    mig_final = np.add.reduce(migs)
+        
+    return mig_final
+
+
 
 def taper(ntr,ns,app,isx,igx):
     
@@ -655,3 +804,160 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     mig_final = np.add.reduce(migs)
         
     return mig_final
+
+
+
+def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+    """
+    Calculate the Kirchhoff Migration for a single gather
+    or the stacked migration for several gathers  in a array.
+    Includes the obliquity factor, phase shift, aperture, window
+    and weight factor w. 
+    
+    Parameters
+    ----------
+    files : lista (array) com os dados sísmicos. 
+    isx : posição do tiro
+    dx : discretização no eixo x (m)
+    dz : discretização no eixo z (m)
+    dt : discretização do tempo (s)
+    win : (tamanho da janela)/2
+    dwin : passo da janela. Preferencialmente, dwin=dt
+    app : tamanho da abertura
+    TTh : tabela do tempo de trânsito calculada com a função raymodel3
+    X : componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
+    Y : componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
+    
+    Returns
+    -------
+    refl_mig : conventional reflection migration image (w = w(s,r,t))
+    diff_mig : diffraction migration image (w = 1)
+    """
+    
+    gather = np.array(gather)
+    
+    #single shot
+    if gather.ndim == 2:
+    
+        gather = phase_shift(gather)
+
+        timer=np.round(TTh/dt)+1
+        #timer=TTh
+
+        window = np.arange(-win,win,dwin)
+        [nt,ntr]=gather.shape
+        [ntr2,nz,nx]=timer.shape
+        if ntr!=ntr2:
+            print('Gather e traveltime table tem numero diferente de traços')
+
+        #mig=np.zeros([nz,nx])
+        refl_mig = np.zeros([nz,nx])
+        diff_mig = np.zeros([nz,nx])
+
+        IX = np.arange(0,nx*dx,dx)
+        IZ = np.arange(0,nz*dz,dz)
+        [IIX,IIZ] = np.meshgrid(IX,IZ)
+        # Loop over each trace of the shot gather at src isx
+        for igx in tqdm(range(0,ntr)):
+            w = peso(TTh,dt,X,Y,igx,isx)
+            #trace_win = np.zeros([nz,nx])
+            trace_reflwin = np.zeros([nz,nx])
+            trace_diffwin = np.zeros([nz,nx])
+            R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
+            r_mask = (R==0)
+            R[r_mask]= dx/1000 #trocando 0 por algo pequeno
+            obli = IIZ/R
+            trace_app = taper(ntr,nz,app,isx,igx) 
+
+            for j in range(len(window)): #somar amplitudes da curva de difração com uma janela 
+                t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
+                twin = t + window[j]
+                t2 = (twin<nt)*twin 
+                trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
+                #trace1 = trace1.reshape([nz,nx])*(w)
+                trace_refl1 = trace1.reshape([nz,nx])*(w)
+                trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                #trace1 = trace1*trace_app
+                trace_refl = trace_refl1*trace_app
+                trace_diff = trace_diff1*trace_app
+                #trace_win = trace_win+trace1
+                trace_reflwin = trace_reflwin + trace_refl
+                trace_diffwin = trace_diffwin + trace_diff
+
+            #mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace_reflwin*obli
+            refl_mig[0:nz,0:nx] = refl_mig[0:nz,0:nx] + trace_reflwin*obli
+            diff_mig[0:nz,0:nx] = diff_mig[0:nz,0:nx] + trace_diffwin*obli
+    
+    #multiple shots, stack
+    elif gather.ndim == 3:
+
+        gathers_shifted = []
+
+        for i in gather:
+            gather_shifted = phase_shift(i)
+            gathers_shifted.append(gather_shifted)
+
+        files = gathers_shifted
+        timer=np.round(TTh/dt)+1
+        
+        #migs = []
+        refl_migs = []
+        diff_migs = []
+
+        for count,gather in tqdm(enumerate(files)):
+            isx = count
+            window = np.arange(-win,win,dwin)
+            [nt,ntr] = gather.shape
+            [ntr2,nz,nx] = timer.shape
+            if ntr!=ntr2:
+                print('Gather e traveltime table tem numero diferente de traços')
+
+            #mig=np.zeros([nz,nx])
+            #mig_final=np.zeros([nz,nx])
+            
+            refl_mig_isx = np.zeros([nz,nx])
+            diff_mig_isx = np.zeros([nz,nx])
+
+            IX = np.arange(0,nx*dx,dx)
+            IZ = np.arange(0,nz*dz,dz)
+            [IIX,IIZ] = np.meshgrid(IX,IZ)
+
+            for igx in range(0,ntr):
+                w = peso(TTh,dt,X,Y,igx,isx)
+                #trace_win = np.zeros([nz,nx])
+                trace_reflwin = np.zeros([nz,nx])
+                trace_diffwin = np.zeros([nz,nx])
+                R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
+                r_mask = (R==0)
+                R[r_mask]= dx/1000
+                obli = IIZ/R
+                trace_app = taper(ntr,nz,app,isx,igx) 
+
+                for j in range(len(window)):
+                    t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
+                    twin = t + window[j]
+                    t2 = (twin<nt)*twin 
+                    trace1 = gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
+                    #trace1 = trace1.reshape([nz,nx])*w 
+                    trace_refl1 = trace1.reshape([nz,nx])*(w)
+                    trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                    #trace1 = trace1*trace_app
+                    trace_refl = trace_refl1*trace_app
+                    trace_diff = trace_diff1*trace_app
+                    #trace_win = trace_win+trace1
+                    trace_reflwin = trace_reflwin + trace_refl
+                    trace_diffwin = trace_diffwin + trace_diff
+
+                #mig[0:nz,0:nx]=mig[0:nz,0:nx] + trace_win*obli
+                refl_mig_isx[0:nz,0:nx] = refl_mig_isx[0:nz,0:nx] + trace_reflwin*obli
+                diff_mig_isx[0:nz,0:nx] = diff_mig_isx[0:nz,0:nx] + trace_diffwin*obli
+
+            #migs.append(mig)
+            refl_migs.append(refl_mig_isx)
+            diff_migs.append(diff_mig_isx)
+
+        #mig_final = np.add.reduce(migs)
+        refl_mig = np.add.reduce(refl_migs)
+        diff_mig = np.add.reduce(diff_migs)
+        
+    return refl_mig,diff_mig
