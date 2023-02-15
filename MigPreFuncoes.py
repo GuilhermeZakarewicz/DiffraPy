@@ -9,12 +9,26 @@ from tqdm import tqdm
 from scipy.fft import rfft, rfftfreq, irfft
 import cmath
 
-print('Imported MigPreFuncoes now')
-
 def ricker(nps,fr,dt):
-    npt = nps*dt
+    """
+    Generate a Ricker wavelet signal.
+
+    Parameters
+    ----------
+    nps : int
+        The number of samples in the output signal.
+    fr : float
+        The central frequency of the wavelet in Hz.
+    dt : float
+        The time step of the output signal in seconds.
+
+    Returns
+    -------
+    numpy.ndarray
+        The Ricker wavelet signal as a 1-D numpy array.
+    """
+    npt = nps * dt
     t = np.arange(-npt/2,npt/2,dt)
-    #t = np.linspace(-npt/2,npt/2,nps)
     rick1=(1-t *t * fr**2 *np.pi**2  ) * np.exp(- t**2 * np.pi**2 * fr**2 )
     rick=rick1[int(np.round(nps/2))-(int(np.round(1/fr/dt)))+1:nps]
     l = len(rick)
@@ -24,9 +38,39 @@ def ricker(nps,fr,dt):
     rick=rick2
     return np.array(rick)
 
-# Equivalente ao sub2ind do Matlab
+
 def sub2ind(array_shape, rows, cols):
-    #return rows*array_shape[1] + cols
+    """
+    Convert subscripts to linear indices.
+
+    Parameters
+    ----------
+    array_shape : tuple of int
+        The shape of the array to which the indices correspond.
+    rows : array-like
+        The row indices.
+    cols : array-like
+        The column indices.
+
+    Returns
+    -------
+    array-like
+        The linear indices corresponding to the input subscripts.
+
+    Notes
+    -----
+    - The input arrays `rows` and `cols` must have the same shape.
+    - The function assumes 0-based indexing.
+    - The function uses broadcasting to compute the linear indices.
+
+    Examples
+    --------
+    >>> sub2ind((3, 4), [0, 1, 2], [0, 1, 2])
+    array([0, 5, 10])
+    >>> sub2ind((3, 4), [2, 1], [3, 2])
+    array([11, 6])
+    
+    """
     return cols*array_shape[0] + rows
 
 def buildL2(L,Z,X,ind,z0,x0,z1,x1):
@@ -61,6 +105,40 @@ def subs2(sZ,sX):
     return dA
 
 def lineseg2(z0,x0,z1,x1):
+    """
+    Compute a line segment between two points in 2D space using Bresenham's algorithm.
+
+    Parameters
+    ----------
+    z0 : float
+        The z-coordinate of the starting point.
+    x0 : float
+        The x-coordinate of the starting point.
+    z1 : float
+        The z-coordinate of the end point.
+    x1 : float
+        The x-coordinate of the end point.
+
+    Returns
+    -------
+    list
+        A list containing three items:
+            - `pz`: A sorted array of z-coordinates along the line segment.
+            - `px`: A sorted array of x-coordinates along the line segment.
+            - `j`: The number of coordinates in the line segment.
+
+    Notes
+    -----
+    - This function uses Bresenham's algorithm to compute a line segment between two points in 2D space.
+    - The line segment is returned as two arrays, `pz` and `px`, representing the z- and x-coordinates along the segment, respectively.
+    - The length of the line segment is returned as `j`.
+    - The function assumes that the input coordinates are in increasing order (i.e., z0 <= z1 and x0 <= x1).
+
+    Examples
+    --------
+    >>> lineseg2(0, 0, 3, 3)
+    [[0., 1., 1., 2., 2., 3., 3., 4.],[0., 1., 1., 2., 2., 3., 3., 4.]),8]
+    """
     z1=z1+1
     x1=x1+1
     dz = (z1-z0)
