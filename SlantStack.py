@@ -3,7 +3,7 @@
 import numpy as np
 from tqdm import tqdm
 
-print('Imported SlantStack_v2')
+#print('Imported SlantStack_v2')
 
 def slant(p,tau,data1,dx,dz,z_ini,x_ini):
     """
@@ -143,7 +143,7 @@ def slant_stack(pmin,pmax,dp,taumin,taumax,dtau,data1,dx,dt,t_ini,x_ini):
 ### NEW FUNCTIONS ####
 
 def slant_local(data1,x_ini,z_ini,dx,dz,x0,z0,p):
-        """
+    """
     Calculates the slant stack measure at a local location specified by the coordinates x0 and z0
     (image point), for a given slope value p.
 
