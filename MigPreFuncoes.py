@@ -13,7 +13,7 @@ import cmath
 
 def ricker(nps,fr,dt):
     """
-    Generate a Ricker wavelet signal.
+    Generate a Ricker wavelet signal (Mexican Hat).
 
     Parameters:
     -----------
@@ -122,6 +122,7 @@ def buildL2(L,Z,X,ind,z0,x0,z1,x1):
         elif b == -1:
             b = 0
         L[ind,sub2ind([Z,X],a,b)]=l
+    
     return L
 
 
@@ -156,8 +157,8 @@ def subs2(sZ,sX):
     dA = lil_matrix((z*x,z1*x1))
     for j in range(0,z):
         for i in range(0,x):
-            #print(i)
             dA = buildL2(dA,z1,x1,sub2ind([z,x],j,i),sZ,sX,j,i)
+    
     return dA
 
 def lineseg2(z0,x0,z1,x1):
@@ -227,6 +228,7 @@ def lineseg2(z0,x0,z1,x1):
     pz = np.sort(pz)
     if  sgnx==-sgnz:
         px=np.flip(px)
+    
     return [pz,px,j]
 
 def Mray(SW,SP,DX):
@@ -350,6 +352,7 @@ def Mray(SW,SP,DX):
         if mark[np.ix_(Z2.flatten(),X2.flatten())].all():
             break
         Ttable = T[np.ix_(Z2.flatten(),X2.flatten())]*DX
+    
     return Ttable
 
 
@@ -393,6 +396,7 @@ def raymodel3(SW,dx,nx,filename):
         
     with open(filename, 'wb') as f:
         np.save(f, traveltimesrc)
+    
     return traveltimesrc
 
 
@@ -681,13 +685,18 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         
     Notes:
     ------
-    The function first checks whether the input data is for a single shot or multiple 
+    - The function first checks whether the input data is for a single shot or multiple 
     shots, then processes the seismic data by phase shifting and applying the obliquity 
     factor. It then applies a window to the data, tapers the traces, and calculates the 
     migration for each window position. Finally, if the input data is composed by multiple
     shots, it stacks the migration images for each window position to produce the final migration 
     image. Both conventional and diffraction migration images are generated simultaneously.
     
+    - An important step of the migration process is finding the optimal parameters of window
+    and aperture. A small window may overlook the event's energy, while a large one may include 
+    noise and unrelated energy. Similarly, a small aperture may disregard diffraction energy, 
+    while a large one may consider unrelated noise and energy. Generating an migrated image without
+    considering the effects of these parameters may lead to spurious results. 
     """
     
     gather = np.array(gather)
