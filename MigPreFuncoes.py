@@ -764,12 +764,17 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         files = gathers_shifted
         timer=np.round(TTh/dt)+1
         
-        #migs = []
+        #If the number of shots != ntr, we need to create an  
+        #array with the isx indexes. This snippet assures it. 
+        n_isx = np.shape(files[0])[1] #ntr
+        d_isx = len(files) #number of shots         
+        isxs = np.linspace(0,n_isx,d_isx,endpoint=False) #array with the isx indexes
+        
         refl_migs = []
         diff_migs = []
 
         for count,gather in tqdm(enumerate(files)):
-            isx = count
+            isx = int(np.round(isxs[count])) #acessing the correct index for source position isx
             window = np.arange(-win,win,dwin)
             [nt,ntr] = gather.shape
             [ntr2,nz,nx] = timer.shape
@@ -1138,7 +1143,7 @@ def migstack_winapp_diff(files,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
 
 ###########TESTE TESTE TESTE TESTE TESTE TESTE
 
-def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
+def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
     """
     Calculate the Kirchhoff Migration for a single gather
     or the stacked migration for several gathers  in a array.
@@ -1154,7 +1159,8 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
     dt : discretização do tempo (s)
     win : (tamanho da janela)/2
     dwin : passo da janela. Preferencialmente, dwin=dt
-    app : tamanho da abertura
+    app_ref : tamanho da abertura para migração convencional de reflexão
+    app_diff : tamanho da abertura para migração de difrações
     TTh : tabela do tempo de trânsito calculada com a função raymodel3
     X : componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
     Y : componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
@@ -1167,13 +1173,14 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
     
     gather = np.array(gather)
     
-    #single shot
+    #############
+    #single shot#
+    #############
     if gather.ndim == 2:
     
         gather = phase_shift(gather)
 
         timer=np.round(TTh/dt)+1
-        #timer=TTh
 
         window = np.arange(-win,win,dwin)
         [nt,ntr]=gather.shape
@@ -1181,7 +1188,6 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
         if ntr!=ntr2:
             print('Gather e traveltime table tem numero diferente de traços')
 
-        #mig=np.zeros([nz,nx])
         refl_mig = np.zeros([nz,nx])
         diff_mig = np.zeros([nz,nx])
 
@@ -1192,8 +1198,16 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
         for igx in tqdm(range(0,ntr)):
             
             w = peso(TTh,dt,X,Y,igx,isx)
-            w = w*sm #semblance como peso na função peso
-            w = w**2
+            
+            ######### Single Shot
+            #########
+            #########
+            #w_reff = (w*sm)**4
+            w_reff = (w**4)*(sm)
+            w_diff = (w**4)
+            #########
+            #########
+            #########
             
             trace_reflwin = np.zeros([nz,nx])
             trace_diffwin = np.zeros([nz,nx])
@@ -1201,7 +1215,8 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
             r_mask = (R==0)
             R[r_mask]= dx/1000
             obli = IIZ/R
-            trace_app = taper(ntr,nz,app,isx,igx) 
+            trace_appref = taper(ntr,nz,app_ref,isx,igx)
+            trace_appdif = taper(ntr,nz,app_dif,isx,igx) 
 
             for j in range(len(window)): #somar amplitudes da curva de difração com uma janela 
                 t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
@@ -1209,11 +1224,11 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
                 t2 = (twin<nt)*twin 
                 trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
                 #trace1 = trace1.reshape([nz,nx])*(w)
-                trace_refl1 = trace1.reshape([nz,nx])*(w)
-                trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
+                trace_diff1 = trace1.reshape([nz,nx])*(1-w_diff)
                 #trace1 = trace1*trace_app
-                trace_refl = trace_refl1*trace_app
-                trace_diff = trace_diff1*trace_app
+                trace_refl = trace_refl1*trace_appref
+                trace_diff = trace_diff1*trace_appdif
                 #trace_win = trace_win+trace1
                 trace_reflwin = trace_reflwin + trace_refl
                 trace_diffwin = trace_diffwin + trace_diff
@@ -1222,7 +1237,10 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
             refl_mig[0:nz,0:nx] = refl_mig[0:nz,0:nx] + trace_reflwin*obli
             diff_mig[0:nz,0:nx] = diff_mig[0:nz,0:nx] + trace_diffwin*obli
     
-    #multiple shots, stack
+    
+    #######################
+    #multiple shots, stack#
+    #######################
     elif gather.ndim == 3:
 
         gathers_shifted = []
@@ -1234,20 +1252,20 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
         files = gathers_shifted
         timer=np.round(TTh/dt)+1
         
-        #migs = []
+        n_isx = np.shape(files[0])[1] #ntr
+        d_isx = len(files) #number of shots         
+        isxs = np.linspace(0,n_isx,d_isx,endpoint=False) #array with the isx indexes
+        
         refl_migs = []
         diff_migs = []
 
         for count,gather in tqdm(enumerate(files)):
-            isx = count
+            isx = int(np.round(isxs[count])) #acessing the correct index for source position isx
             window = np.arange(-win,win,dwin)
             [nt,ntr] = gather.shape
             [ntr2,nz,nx] = timer.shape
             if ntr!=ntr2:
                 print('Gather e traveltime table tem numero diferente de traços')
-
-            #mig=np.zeros([nz,nx])
-            #mig_final=np.zeros([nz,nx])
             
             refl_mig_isx = np.zeros([nz,nx])
             diff_mig_isx = np.zeros([nz,nx])
@@ -1258,15 +1276,25 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
 
             for igx in range(0,ntr):
                 w = peso(TTh,dt,X,Y,igx,isx)
-                w = w*sm #semblance como peso na função peso
-                w = w**2
+                
+                ######### #Stack
+                #########
+                #########
+                w_reff = (sm/2)*(w**4)
+                #w_reff = (w**4)
+                w_diff = (w**4)
+                #########
+                #########
+                #########
+                
                 trace_reflwin = np.zeros([nz,nx])
                 trace_diffwin = np.zeros([nz,nx])
                 R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
                 r_mask = (R==0)
                 R[r_mask]= dx/1000
                 obli = IIZ/R
-                trace_app = taper(ntr,nz,app,isx,igx) 
+                trace_appref = taper(ntr,nz,app_ref,isx,igx)
+                trace_appdif = taper(ntr,nz,app_dif,isx,igx) 
 
                 for j in range(len(window)):
                     t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
@@ -1274,11 +1302,11 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,sm):
                     t2 = (twin<nt)*twin 
                     trace1 = gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
                     #trace1 = trace1.reshape([nz,nx])*w 
-                    trace_refl1 = trace1.reshape([nz,nx])*(w)
-                    trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                    trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
+                    trace_diff1 = trace1.reshape([nz,nx])*(1-w_diff)
                     #trace1 = trace1*trace_app
-                    trace_refl = trace_refl1*trace_app
-                    trace_diff = trace_diff1*trace_app
+                    trace_refl = trace_refl1*trace_appref
+                    trace_diff = trace_diff1*trace_appdif
                     #trace_win = trace_win+trace1
                     trace_reflwin = trace_reflwin + trace_refl
                     trace_diffwin = trace_diffwin + trace_diff
