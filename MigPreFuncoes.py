@@ -599,7 +599,7 @@ def peso(TTh,dt,X,Y,igx,isx):
         if x==0:
             norma[idx]=1e-16 #avoid nan's
 
-    w = (pH/norma * X) + (pV/norma * Y) 
+    w = (pH/norma * X) + (pV/norma * Y)
     
     return w
 
@@ -1225,7 +1225,7 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
                 trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
                 #trace1 = trace1.reshape([nz,nx])*(w)
                 trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
-                trace_diff1 = trace1.reshape([nz,nx])*(1-w_diff)
+                trace_diff1 = trace1.reshape([nz,nx])*(1-w_reff)
                 #trace1 = trace1*trace_app
                 trace_refl = trace_refl1*trace_appref
                 trace_diff = trace_diff1*trace_appdif
@@ -1280,8 +1280,8 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
                 ######### #Stack
                 #########
                 #########
-                w_reff = (sm/2)*(w**4)
-                #w_reff = (w**4)
+                #w_reff = (sm/2)*(w**4)
+                w_reff = (w**4)
                 w_diff = (w**4)
                 #########
                 #########
