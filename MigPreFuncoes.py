@@ -638,8 +638,7 @@ def phase_shift(gather):
         
     return phase_gather
 
-
-def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
+def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
     """
     Perform Kirchhoff Migration on seismic data to create conventional 
     reflection and diffraction migration images. It includes the 
@@ -663,8 +662,10 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         The half-length of the migration window in samples.
     dwin : float
         The step size between migration windows in seconds.
-    app : int
-        The aperture size in number of traces.
+    app_ref : int
+        The aperture size in number of traces.#######****######
+    app_diff : int
+        #######*****#########
     TTh : array-like
         The traveltime table calculated by the raymodel3 function.
     X : array-like
@@ -675,6 +676,8 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         The Y component of the dip field. Should be calculated with np.cos(m_theta).
         It is obtained with a local slant-stack approach by the function 
         `local_window`
+    sm : array-like
+        #######3***********##############
 
     Returns:
     --------
@@ -723,15 +726,21 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
         IZ = np.arange(0,nz*dz,dz)
         [IIX,IIZ] = np.meshgrid(IX,IZ)
         # Loop over each trace of the shot gather at src isx
+        
         for igx in tqdm(range(0,ntr)):
-            w = peso(TTh,dt,X,Y,igx,isx)            
+            w = peso(TTh,dt,X,Y,igx,isx)
+            ###
+            w_reff = (w**4)*(sm)
+            w_diff = (1-(w**4))
+            ###
             trace_reflwin = np.zeros([nz,nx])
             trace_diffwin = np.zeros([nz,nx])
             R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
             r_mask = (R==0)
             R[r_mask]= dx/1000
             obli = IIZ/R
-            trace_app = taper(ntr,nz,app,isx,igx) 
+            trace_appref = taper(ntr,nz,app_ref,isx,igx)
+            trace_appdif = taper(ntr,nz,app_dif,isx,igx) 
 
             for j in range(len(window)): #somar amplitudes da curva de difração com uma janela 
                 t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
@@ -739,11 +748,11 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
                 t2 = (twin<nt)*twin 
                 trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
                 #trace1 = trace1.reshape([nz,nx])*(w)
-                trace_refl1 = trace1.reshape([nz,nx])*(w)
-                trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
+                trace_diff1 = trace1.reshape([nz,nx])*(w_diff)
                 #trace1 = trace1*trace_app
-                trace_refl = trace_refl1*trace_app
-                trace_diff = trace_diff1*trace_app
+                trace_refl = trace_refl1*trace_appref
+                trace_diff = trace_diff1*trace_appdif
                 #trace_win = trace_win+trace1
                 trace_reflwin = trace_reflwin + trace_refl
                 trace_diffwin = trace_diffwin + trace_diff
@@ -792,7 +801,11 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
             [IIX,IIZ] = np.meshgrid(IX,IZ)
 
             for igx in range(0,ntr):
+                
                 w = peso(TTh,dt,X,Y,igx,isx)
+                w_reff = (w**4)*(sm)
+                w_diff = (1-(w**4))
+                
                 #trace_win = np.zeros([nz,nx])
                 trace_reflwin = np.zeros([nz,nx])
                 trace_diffwin = np.zeros([nz,nx])
@@ -800,7 +813,8 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
                 r_mask = (R==0)
                 R[r_mask]= dx/1000
                 obli = IIZ/R
-                trace_app = taper(ntr,nz,app,isx,igx) 
+                trace_appref = taper(ntr,nz,app_ref,isx,igx)
+                trace_appdif = taper(ntr,nz,app_dif,isx,igx) 
 
                 for j in range(len(window)):
                     t = timer[isx,0:nz,0:nx] + timer[igx,0:nz,0:nx] #t_{d}
@@ -808,11 +822,11 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
                     t2 = (twin<nt)*twin 
                     trace1 = gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
                     #trace1 = trace1.reshape([nz,nx])*w 
-                    trace_refl1 = trace1.reshape([nz,nx])*(w)
-                    trace_diff1 = trace1.reshape([nz,nx])*(1-w)
+                    trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
+                    trace_diff1 = trace1.reshape([nz,nx])*(w_diff)
                     #trace1 = trace1*trace_app
-                    trace_refl = trace_refl1*trace_app
-                    trace_diff = trace_diff1*trace_app
+                    trace_refl = trace_refl1*trace_appref
+                    trace_diff = trace_diff1*trace_appdif
                     #trace_win = trace_win+trace1
                     trace_reflwin = trace_reflwin + trace_refl
                     trace_diffwin = trace_diffwin + trace_diff
@@ -833,12 +847,19 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y):
 
 
 
+
+###########################################################################################################
+###########################################################################################################
+
                 #####################################
                 ##Section for testing new functions##
                 #####################################
 
-
-
+###########################################################################################################
+###########################################################################################################          
+         
+    
+    
 def migvsp_winapp(gather,isx,dx,dz,dt,win,dwin,app,TTh,X,Y,epsilon):
     """
     Calcula a migração para 1 arquivo (1 tiro) com janela (window) e abertura (aperture)
@@ -1203,12 +1224,12 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
             #########
             #########
             #w_reff = (w*sm)**4
-            w_reff = (w**4)*(sm)
-            w_diff = (w**4)
+            w_reff = (np.abs(w)**4)*(np.sqrt(sm))
+            w_diff = (1-np.abs(w)**4)
             #########
             #########
             #########
-            
+                      
             trace_reflwin = np.zeros([nz,nx])
             trace_diffwin = np.zeros([nz,nx])
             R = np.sqrt(IIZ**2 + (IIX-(igx+isx)/2*dx)**2)
@@ -1225,7 +1246,7 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
                 trace1=gather.T[np.ix_([igx],t2.flatten().astype(np.int32))] 
                 #trace1 = trace1.reshape([nz,nx])*(w)
                 trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
-                trace_diff1 = trace1.reshape([nz,nx])*(1-w_reff)
+                trace_diff1 = trace1.reshape([nz,nx])*(w_diff)
                 #trace1 = trace1*trace_app
                 trace_refl = trace_refl1*trace_appref
                 trace_diff = trace_diff1*trace_appdif
@@ -1281,8 +1302,8 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
                 #########
                 #########
                 #w_reff = (sm/2)*(w**4)
-                w_reff = (w**4)
-                w_diff = (w**4)
+                w_reff = (np.abs(w)**4)*(np.sqrt(sm))
+                w_diff = (1-np.abs(w)**4)
                 #########
                 #########
                 #########
@@ -1303,7 +1324,7 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
                     trace1 = gather.T[np.ix_([igx],t2.flatten().astype(np.int32))]
                     #trace1 = trace1.reshape([nz,nx])*w 
                     trace_refl1 = trace1.reshape([nz,nx])*(w_reff)
-                    trace_diff1 = trace1.reshape([nz,nx])*(1-w_diff)
+                    trace_diff1 = trace1.reshape([nz,nx])*(w_diff)
                     #trace1 = trace1*trace_app
                     trace_refl = trace_refl1*trace_appref
                     trace_diff = trace_diff1*trace_appdif
