@@ -1132,9 +1132,9 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
     dwin : float
         The step size between migration windows in seconds.
     app_ref : int
-        The aperture size in number of traces.#######****######
+        The aperture size in number of traces for the conventional migration.
     app_diff : int
-        #######*****#########
+        The aperture size in number of traces for the diffraction-oriented migration
     TTh : array-like
         The traveltime table calculated by the raymodel3 function.
     X : array-like
@@ -1185,7 +1185,7 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
         [nt,ntr]=gather.shape
         [ntr2,nz,nx]=timer.shape
         if ntr!=ntr2:
-            print('Gather e traveltime table tem numero diferente de traços')
+            print('Gather and traveltime table have different trace numbers')
 
         #mig=np.zeros([nz,nx])
         refl_mig = np.zeros([nz,nx])
@@ -1257,7 +1257,7 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
             [nt,ntr] = gather.shape
             [ntr2,nz,nx] = timer.shape
             if ntr!=ntr2:
-                print('Gather e traveltime table tem numero diferente de traços')
+                print('Gather and traveltime table have different trace numbers')
 
             #mig=np.zeros([nz,nx])
             #mig_final=np.zeros([nz,nx])
@@ -1316,7 +1316,7 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
 
 
 
-def plot(grid,filename,nx,dx,nz,dz,xlabel="",ylabel="",cmp="viridis",it=None):
+def plot(grid,filename,nx,dx,nz,dz,xlabel="",ylabel="",cmp="viridis",it=None,color_bar=False):
     """
     Plots a 2D grid using matplotlib. 
 
@@ -1346,6 +1346,8 @@ def plot(grid,filename,nx,dx,nz,dz,xlabel="",ylabel="",cmp="viridis",it=None):
         Interpolation method to use, by default None. Try others: "bicubic", "gaussian",
         "nearest", "sinc"...
         https://matplotlib.org/stable/gallery/images_contours_and_fields/interpolation_methods.html
+    color_bar : boolean, optional
+        Set color_bar = True for visualizing the colorbar.
 
     Returns
     -------
@@ -1375,13 +1377,14 @@ def plot(grid,filename,nx,dx,nz,dz,xlabel="",ylabel="",cmp="viridis",it=None):
     for tick in ax1.get_yticklabels():
         tick.set_fontname("Times New Roman")
 
-    divider1 = make_axes_locatable(ax1)
+    if color_bar:
+        divider1 = make_axes_locatable(ax1)
 
-    cax1 = divider1.append_axes("right", size="5%", pad=0.3)
-    cbar1 = plt.colorbar(im1, cax=cax1)
-    cbar1.ax.tick_params(labelsize=12)
-    for l in cbar1.ax.yaxis.get_ticklabels():
-        l.set_family("Times New Roman")
+        cax1 = divider1.append_axes("right", size="5%", pad=0.3)
+        cbar1 = plt.colorbar(im1, cax=cax1)
+        cbar1.ax.tick_params(labelsize=12)
+        for l in cbar1.ax.yaxis.get_ticklabels():
+            l.set_family("Times New Roman")
 
     plt.savefig("Data/{}.png".format(str(filename)),dpi=300)
     plt.show()
@@ -1444,7 +1447,7 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm,SW):
         [nt,ntr]=gather.shape
         [ntr2,nz,nx]=timer.shape
         if ntr!=ntr2:
-            print('Gather e traveltime table tem numero diferente de traços')
+            print('Gather and traveltime table have different trace numbers')
 
         refl_mig = np.zeros([nz,nx])
         diff_mig = np.zeros([nz,nx])
@@ -1525,7 +1528,7 @@ def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm,SW):
             [nt,ntr] = gather.shape
             [ntr2,nz,nx] = timer.shape
             if ntr!=ntr2:
-                print('Gather e traveltime table tem numero diferente de traços')
+                print('Gather and traveltime table have different trace numbers')
             
             refl_mig_isx = np.zeros([nz,nx])
             diff_mig_isx = np.zeros([nz,nx])
