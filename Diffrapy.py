@@ -245,7 +245,7 @@ def Mray(SW,SP,DX):
     Parameters:
     -----------
     SW : numpy.ndarray
-        2D array of slowness values representing the slowness model (1/velocity model) .
+        2D array of slowness values representing the slowness model (1/velocity model).
     SP : tuple or list
         Tuple or list of two integers representing the starting point of the ray [0,src].
     DX : float
@@ -757,7 +757,7 @@ def local_windowS(data1,xwin,zwin,x_ini,z_ini,dx,dz,x0,z0,pmin,pmax,dp):
     Returns:
     --------
     s : float
-        The maximum cohernece value.
+        The maximum coherence value.
     pm : float
         Slope corresponding to the maximum slant stack value.
     """
@@ -1146,7 +1146,7 @@ def kirchhoffMigration(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm):
         It is obtained with a local slant-stack approach by the function 
         `local_window`
     sm : array-like
-        #######3***********##############
+        Maximum correlation coefficients computed from local windowed slant stacks.
 
     Returns:
     --------
@@ -1404,32 +1404,12 @@ def plot(grid,filename,nx,dx,nz,dz,xlabel="",ylabel="",cmp="viridis",it=None,col
 
 ###########TESTE TESTE TESTE TESTE TESTE TESTE
 
+
+
 def migration_teste(gather,isx,dx,dz,dt,win,dwin,app_ref,app_dif,TTh,X,Y,sm,SW):
     """
-    Calculate the Kirchhoff Migration for a single gather
-    or the stacked migration for several gathers  in a array.
-    Includes the obliquity factor, phase shift, aperture, window
-    and weight factor w. 
+    Function for testing modifications on the migration.
     
-    Parameters
-    ----------
-    files : lista (array) com os dados sísmicos. 
-    isx : posição do tiro
-    dx : discretização no eixo x (m)
-    dz : discretização no eixo z (m)
-    dt : discretização do tempo (s)
-    win : (tamanho da janela)/2
-    dwin : passo da janela. Preferencialmente, dwin=dt
-    app_ref : tamanho da abertura para migração convencional de reflexão
-    app_diff : tamanho da abertura para migração de difrações
-    TTh : tabela do tempo de trânsito calculada com a função raymodel3
-    X : componente X do modelo; X = np.sin(m_theta); X.shape = [nz,nx]
-    Y : componente Y do modelo; Y = np.cos(m_theta); Y.shape = [nz,nx]
-    
-    Returns
-    -------
-    refl_mig : conventional reflection migration image (w = w(s,r,t))
-    diff_mig : diffraction migration image (w = 1)
     """
     
     gather = np.array(gather)
