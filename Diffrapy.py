@@ -112,12 +112,16 @@ def buildL2(L,Z,X,ind,z0,x0,z1,x1):
     [pz,px,j]=lineseg2(z0,x0,z1,x1)
     for i in range(0,j-1):
         l = np.linalg.norm([pz[i+1]-pz[i],px[i+1]-px[i]])
-        a = np.floor((pz[i+1]+pz[i])/2)-1
+        #a = np.floor((pz[i+1]+pz[i])/2)-1
+        #teste***
+        a = int(np.floor((pz[i+1]+pz[i])/2)-1)
         if a == Z:
             a = Z-1
         elif a==-1:
             a = 0
-        b = np.floor((px[i+1]+px[i])/2)-1
+        #b = np.floor((px[i+1]+px[i])/2)-1
+        #teste***
+        b = int(np.floor((px[i+1]+px[i])/2)-1)
         if b == X:
             b = X-1
         elif b == -1:
