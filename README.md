@@ -15,6 +15,8 @@
 
 [Writing Reading SEGY files](#segy-files)
 
+[Citation](#citation)
+
 [Have a question or found a problem?](#have-a-question-or-found-a-problem)
 
 ## Introduction
@@ -48,6 +50,12 @@ In the notebook ```Heterogeneous_VelocityModel_Example.ipynb```, you can find th
 ## SEGY files
 
 If you want to apply the seismic diffractions method on a field data, we demonstrate how to read .segy files in the notebook ```Writing_Reading_Segy_File_Example.ipynb```. You can also convert the synthetic data generated in the examples to .segy files.
+
+## Citation
+
+Interested in this program? If you use it in your study, please consider citing the following article:
+
+Guilherme Zakarewicz, Susanne Maciel, Ricardo Biloti, DiffraPy: An open-source Python software for seismic diffraction imaging, Computers & Geosciences, Volume 186, 2024, 105575. https://doi.org/10.1016/j.cageo.2024.105575 
 
 ## Have a question or found a problem?
 
