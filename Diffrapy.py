@@ -630,13 +630,19 @@ def slant_local(data1,x_ini,z_ini,dx,dz,x0,z0,p):
     
     """
     
+    #[nz1,ntr1]=data1.shape
+    #dataC = data1.copy()
+    #x = np.arange(x_ini,(x_ini+ntr1),1)
+    #z = p*(x-x0) + z0
+    #x_grid = np.int64((np.round(x))-x_ini)
+    #z_grid = np.int64(np.round(z)-z_ini)
+    
     [nz1,ntr1]=data1.shape
     dataC = data1.copy()
-    
-    x = np.arange(x_ini,(x_ini+ntr1),1)
-    z = p*(x-x0) + z0
-    x_grid = np.int64((np.round(x))-x_ini)
-    z_grid = np.int64(np.round(z)-z_ini)
+    x = np.arange(x_ini*dx,(x_ini+ntr1)*dx,dx) #now considering the dx,dz information
+    z = p*(x-(x0*dx))+ z0*dz
+    z_grid = np.int64(np.round(z/dz)-z_ini)
+    x_grid = np.int64((np.round(x/dx))-x_ini)
     
     s_n = 0
     s_d = 0
